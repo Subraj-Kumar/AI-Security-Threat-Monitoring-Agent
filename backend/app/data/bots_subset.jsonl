@@ -1,0 +1,7 @@
+{"source": "cisco_asa", "event_type": "LOGIN_FAIL", "username": "a.stone", "ip": "185.150.14.22", "raw": "%ASA-6-113015: AAA user authentication Rejected : reason = User not found : server = 192.168.1.10 : user = a.stone"}
+{"source": "cisco_asa", "event_type": "LOGIN_FAIL", "username": "a.stone", "ip": "185.150.14.22", "raw": "%ASA-6-113015: AAA user authentication Rejected : reason = AAA failure : server = 192.168.1.10 : user = a.stone"}
+{"source": "cisco_asa", "event_type": "LOGIN_FAIL", "username": "a.stone", "ip": "185.150.14.22", "raw": "%ASA-6-113015: AAA user authentication Rejected : reason = AAA failure : server = 192.168.1.10 : user = a.stone"}
+{"source": "cisco_asa", "event_type": "LOGIN_FAIL", "username": "a.stone", "ip": "185.150.14.22", "raw": "%ASA-6-113015: AAA user authentication Rejected : reason = AAA failure : server = 192.168.1.10 : user = a.stone"}
+{"source": "cisco_asa", "event_type": "LOGIN_FAIL", "username": "a.stone", "ip": "185.150.14.22", "raw": "%ASA-6-113015: AAA user authentication Rejected : reason = AAA failure : server = 192.168.1.10 : user = a.stone"}
+{"source": "cisco_asa", "event_type": "LOGIN_SUCCESS", "username": "a.stone", "ip": "185.150.14.22", "raw": "%ASA-6-113008: AAA transaction status ACCEPT : user = a.stone"}
+{"source": "windows_wineventlog", "event_type": "PRIV_ESC", "username": "a.stone", "ip": "185.150.14.22", "raw": "EventCode=4728 A member was added to a security-enabled global group. Member: CN=a.stone,OU=Users,DC=splunk,DC=com Group: Domain Admins"}
