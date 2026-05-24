@@ -54,6 +54,7 @@ interface Incident {
   assignee: string;
   mitre_tags: string[];
   audit_log: AuditEntry[];
+  threat_intel_enrichment?: string[];
 }
 
 interface ChatMessage {
@@ -306,6 +307,17 @@ export default function IncidentDetailPage() {
                       {incident.mitre_tags.map((tag) => (
                         <span key={tag} className="bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1">
                           <span className="text-blue-500">⚡</span> {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Judge Feature: Threat Intelligence Enrichment */}
+                  {incident.threat_intel_enrichment && incident.threat_intel_enrichment.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2 pt-2">
+                      {incident.threat_intel_enrichment.map((enrichment, idx) => (
+                        <span key={idx} className="bg-red-50 text-red-700 border border-red-200 px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1">
+                          {enrichment}
                         </span>
                       ))}
                     </div>

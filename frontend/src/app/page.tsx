@@ -13,6 +13,15 @@ type Incident = {
   last_seen: string;
 };
 
+type FilteringMetrics = {
+  total_events_processed: number;
+  baseline_noise_filtered: number;
+  critical_incidents_surfaced: number;
+  filtering_effectiveness_percent: number;
+  time_saved_percent: number;
+  analyst_workload_reduction: string;
+};
+
 export default function Dashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +30,9 @@ export default function Dashboard() {
   const [createdIncidents, setCreatedIncidents] = useState(0);
   const [selectedDataset, setSelectedDataset] = useState("synthetic");
   const [ingestError, setIngestError] = useState<string | null>(null);
+  const [honeypotRunning, setHoneypotRunning] = useState(false);
+  const [honeypotLoading, setHoneypotLoading] = useState(false);
+  const [filteringMetrics, setFilteringMetrics] = useState<FilteringMetrics | null>(null);
 
   const fetchIncidents = async () => {
     try {
@@ -34,9 +46,22 @@ export default function Dashboard() {
     }
   };
 
+  const fetchFilteringMetrics = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/analytics/filtering-metrics");
+      if (res.ok) {
+        const data = await res.json();
+        setFilteringMetrics(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch filtering metrics", err);
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchIncidents();
+    fetchFilteringMetrics();
   }, []);
 
   const handleIngestDataset = async (datasetType: string) => {
@@ -58,6 +83,7 @@ export default function Dashboard() {
       setIngestedEvents(data.ingested_events || 0);
       setCreatedIncidents(data.created_incidents || 0);
       await fetchIncidents();
+      await fetchFilteringMetrics();
     } catch (err) {
       console.error(`Failed to ingest ${datasetType}`, err);
       setIngestError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
@@ -69,6 +95,47 @@ export default function Dashboard() {
   const handleSimulateAttack = () => {
     handleIngestDataset("synthetic");
   };
+
+  const handleStartHoneypot = async () => {
+    setHoneypotLoading(true);
+    try {
+      const res = await fetch("http://127.0.0.1:8000/honeypot/start", { method: "POST" });
+      const data = await res.json();
+      setHoneypotRunning(data.running);
+    } catch (err) {
+      console.error("Failed to start honeypot", err);
+    } finally {
+      setHoneypotLoading(false);
+    }
+  };
+
+  const handleStopHoneypot = async () => {
+    setHoneypotLoading(true);
+    try {
+      const res = await fetch("http://127.0.0.1:8000/honeypot/stop", { method: "POST" });
+      const data = await res.json();
+      setHoneypotRunning(data.running);
+    } catch (err) {
+      console.error("Failed to stop honeypot", err);
+    } finally {
+      setHoneypotLoading(false);
+    }
+  };
+
+  const checkHoneypotStatus = async () => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/honeypot/status");
+      const data = await res.json();
+      setHoneypotRunning(data.running);
+    } catch (err) {
+      console.error("Failed to check honeypot status", err);
+    }
+  };
+
+  useEffect(() => {
+    // Check honeypot status on mount
+    checkHoneypotStatus();
+  }, []);
 
   const criticalCount = incidents.filter(i => i.severity === "critical").length;
   const noiseFilteredPercent = ingestedEvents > 0 
@@ -121,57 +188,77 @@ export default function Dashboard() {
               {ingesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
               {ingesting ? "Ingesting..." : "Simulate Attack"}
             </button>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <select
-                value={selectedDataset}
-                onChange={(e) => setSelectedDataset(e.target.value)}
-                disabled={ingesting}
-                className="px-4 py-2.5 rounded-xl font-medium text-sm border border-slate-300 bg-white text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm hover:border-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
-              >
-                <option value="synthetic">Simulated Enterprise Traffic</option>
-                <option value="bots-auth">Splunk BOTS (AD/Auth CSV)</option>
-                <option value="suricata">Splunk BOTS (Suricata IDS JSON)</option>
-                <option value="live">📡 Live Honeypot Stream</option>
-              </select>
-              <button
-                onClick={async () => {
-                  setIngesting(true);
-                  try {
-                    if (selectedDataset === "live") {
-                      // For live, the honeypot script already ingested the data.
-                      // We just refresh the dashboard to show the new incidents
-                      await fetchIncidents();
-                    } else {
-                      const res = await fetch(`http://127.0.0.1:8000/ingest/dataset/${selectedDataset}`, { method: "POST" });
-                      if (!res.ok) {
-                        if (res.status === 404) {
-                          const error = await res.json();
-                          setIngestError(`❌ ${error.detail}`);
-                        } else {
-                          setIngestError(`Failed to ingest dataset (HTTP ${res.status})`);
-                        }
-                        setIngesting(false);
-                        return;
-                      }
-                      const data = await res.json();
-                      setIngestedEvents(data.ingested_events || 0);
-                      setCreatedIncidents(data.created_incidents || 0);
-                      await fetchIncidents();
+            <select
+              value={selectedDataset}
+              onChange={(e) => setSelectedDataset(e.target.value)}
+              disabled={ingesting}
+              className="px-4 py-2.5 rounded-xl font-medium text-sm border border-slate-300 bg-white text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm hover:border-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+            >
+              <option value="synthetic">Simulated Enterprise Traffic</option>
+              <option value="bots-auth">Splunk BOTS (AD/Auth CSV)</option>
+              <option value="suricata">Splunk BOTS (Suricata IDS JSON)</option>
+              <option value="live">📡 Live Honeypot Stream</option>
+            </select>
+            <button
+              onClick={async () => {
+                setIngesting(true);
+                try {
+                  if (selectedDataset === "live") {
+                    if (!honeypotRunning) {
+                      await handleStartHoneypot();
                     }
-                  } catch (err) {
-                    console.error(`Failed to ingest ${selectedDataset}`, err);
-                    setIngestError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-                  } finally {
-                    setIngesting(false);
+                    await fetchIncidents();
+                    await fetchFilteringMetrics();
+                  } else {
+                    const res = await fetch(`http://127.0.0.1:8000/ingest/dataset/${selectedDataset}`, { method: "POST" });
+                    if (!res.ok) {
+                      if (res.status === 404) {
+                        const error = await res.json();
+                        setIngestError(`❌ ${error.detail}`);
+                      } else {
+                        setIngestError(`Failed to ingest dataset (HTTP ${res.status})`);
+                      }
+                      setIngesting(false);
+                      return;
+                    }
+                    const data = await res.json();
+                    setIngestedEvents(data.ingested_events || 0);
+                    setCreatedIncidents(data.created_incidents || 0);
+                    await fetchIncidents();
+                    await fetchFilteringMetrics();
                   }
-                }}
-                disabled={ingesting}
-                className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 whitespace-nowrap"
-              >
-                {ingesting ? <Loader2 className="w-4 h-4 animate-spin" /> : selectedDataset === "live" ? <Activity className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
-                {ingesting ? "Refreshing..." : selectedDataset === "live" ? "Refresh Live Feed" : "Ingest Dataset"}
-              </button>
-            </div>
+                } catch (err) {
+                  console.error(`Failed to ingest ${selectedDataset}`, err);
+                  setIngestError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                } finally {
+                  setIngesting(false);
+                }
+              }}
+              disabled={ingesting}
+              className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 whitespace-nowrap"
+            >
+              {ingesting ? <Loader2 className="w-4 h-4 animate-spin" /> : selectedDataset === "live" ? <Activity className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+              {ingesting ? "Loading..." : selectedDataset === "live" ? "Refresh Live Feed" : "Ingest Dataset"}
+            </button>
+            {honeypotRunning && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-50 border border-purple-200 text-xs text-purple-700 shadow-sm whitespace-nowrap">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                  </span>
+                  🎯 Honeypot Active
+                </div>
+                <button
+                  onClick={handleStopHoneypot}
+                  disabled={honeypotLoading}
+                  className="flex items-center gap-2 text-white px-4 py-2 rounded-xl font-semibold transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 whitespace-nowrap text-sm"
+                >
+                  {honeypotLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                  {honeypotLoading ? "Stopping..." : "⛔ Stop"}
+                </button>
+              </div>
+            )}
             <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/80 border border-slate-200 text-xs text-slate-600 shadow-sm">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -241,6 +328,50 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* AI Threat Prioritization Metrics (Judge Feature) */}
+        {filteringMetrics && filteringMetrics.total_events_processed > 0 && (
+          <div className="mb-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="group bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300">
+              <div className="flex items-start gap-4">
+                <div className="bg-blue-100 p-3 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                  <Shield className="text-blue-600 w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-blue-700 text-sm font-semibold">📊 Raw Events Ingested</p>
+                  <p className="text-3xl font-bold text-blue-900 mt-2">{filteringMetrics.total_events_processed.toLocaleString()}</p>
+                  <p className="text-xs text-blue-600 mt-2">Total security logs processed</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="group bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300">
+              <div className="flex items-start gap-4">
+                <div className="bg-emerald-100 p-3 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                  <CheckCircle className="text-emerald-600 w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-emerald-700 text-sm font-semibold">✅ Noise Filtered (Baseline)</p>
+                  <p className="text-3xl font-bold text-emerald-900 mt-2">{filteringMetrics.baseline_noise_filtered.toLocaleString()}</p>
+                  <p className="text-xs text-emerald-600 mt-2">False positives removed: {filteringMetrics.filtering_effectiveness_percent}%</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="group bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300">
+              <div className="flex items-start gap-4">
+                <div className="bg-red-100 p-3 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                  <Zap className="text-red-600 w-6 h-6" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-red-700 text-sm font-semibold">🎯 Critical Incidents Surfaced</p>
+                  <p className="text-3xl font-bold text-red-900 mt-2">{filteringMetrics.critical_incidents_surfaced}</p>
+                  <p className="text-xs text-red-600 mt-2">{filteringMetrics.analyst_workload_reduction}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Incidents Table */}
         <div>

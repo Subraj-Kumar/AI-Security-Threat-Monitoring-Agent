@@ -44,6 +44,7 @@ class IncidentDetail(IncidentListItem):
     events: List[LogEvent]
     mitre_tags: List[str] = []
     audit_log: List[AuditEntry] = []
+    threat_intel_enrichment: List[str] = []  # Threat intel hits (e.g., "🔴 Known APT Group")
 
 # --- API REQUEST/RESPONSE SCHEMAS ---
 class IngestResult(BaseModel):
