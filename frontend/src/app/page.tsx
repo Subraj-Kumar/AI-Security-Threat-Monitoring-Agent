@@ -4,6 +4,20 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Shield, BarChart3, CheckCircle, ChevronRight, Zap, Loader2, RefreshCw, Activity } from "lucide-react";
 
+// --- DYNAMIC ENVIRONMENT DETECTION ---
+// If the app is running on localhost, it uses your local Python backend.
+// If it is deployed on Vercel, it uses your Render cloud backend.
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      return "http://127.0.0.1:8000";
+    }
+  }
+  return "https://sec-ops-backend.onrender.com";
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
 type Incident = {
   id: string;
   title: string;
@@ -36,7 +50,7 @@ export default function Dashboard() {
 
   const fetchIncidents = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/incidents");
+      const res = await fetch(`${API_BASE_URL}/incidents`);
       const data = await res.json();
       setIncidents(data);
     } catch (err) {
@@ -48,7 +62,7 @@ export default function Dashboard() {
 
   const fetchFilteringMetrics = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/analytics/filtering-metrics");
+      const res = await fetch(`${API_BASE_URL}/analytics/filtering-metrics`);
       if (res.ok) {
         const data = await res.json();
         setFilteringMetrics(data);
@@ -68,7 +82,7 @@ export default function Dashboard() {
     setIngesting(true);
     setIngestError(null);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/ingest/dataset/${datasetType}`, { method: "POST" });
+      const res = await fetch(`${API_BASE_URL}/ingest/dataset/${datasetType}`, { method: "POST" });
       if (!res.ok) {
         if (res.status === 404) {
           const error = await res.json();
@@ -99,7 +113,7 @@ export default function Dashboard() {
   const handleStartHoneypot = async () => {
     setHoneypotLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/honeypot/start", { method: "POST" });
+      const res = await fetch(`${API_BASE_URL}/honeypot/start`, { method: "POST" });
       const data = await res.json();
       setHoneypotRunning(data.running);
     } catch (err) {
@@ -112,7 +126,7 @@ export default function Dashboard() {
   const handleStopHoneypot = async () => {
     setHoneypotLoading(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/honeypot/stop", { method: "POST" });
+      const res = await fetch(`${API_BASE_URL}/honeypot/stop`, { method: "POST" });
       const data = await res.json();
       setHoneypotRunning(data.running);
     } catch (err) {
@@ -124,7 +138,7 @@ export default function Dashboard() {
 
   const checkHoneypotStatus = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/honeypot/status");
+      const res = await fetch(`${API_BASE_URL}/honeypot/status`);
       const data = await res.json();
       setHoneypotRunning(data.running);
     } catch (err) {
@@ -210,7 +224,7 @@ export default function Dashboard() {
                     await fetchIncidents();
                     await fetchFilteringMetrics();
                   } else {
-                    const res = await fetch(`http://127.0.0.1:8000/ingest/dataset/${selectedDataset}`, { method: "POST" });
+                    const res = await fetch(`${API_BASE_URL}/ingest/dataset/${selectedDataset}`, { method: "POST" });
                     if (!res.ok) {
                       if (res.status === 404) {
                         const error = await res.json();
