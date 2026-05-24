@@ -17,6 +17,8 @@ export default function Dashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
   const [ingesting, setIngesting] = useState(false);
+  const [ingestedEvents, setIngestedEvents] = useState(0);
+  const [createdIncidents, setCreatedIncidents] = useState(0);
 
   const fetchIncidents = async () => {
     try {
@@ -37,12 +39,36 @@ export default function Dashboard() {
 
   const handleIngest = async () => {
     setIngesting(true);
-    await fetch("http://127.0.0.1:8000/ingest/sample", { method: "POST" });
+    try {
+      const res = await fetch("http://127.0.0.1:8000/ingest/sample", { method: "POST" });
+      const data = await res.json();
+      setIngestedEvents(data.ingested_events || 0);
+      setCreatedIncidents(data.created_incidents || 0);
+    } catch (err) {
+      console.error("Failed to ingest sample", err);
+    }
+    await fetchIncidents();
+    setIngesting(false);
+  };
+
+  const handleIngestBots = async () => {
+    setIngesting(true);
+    try {
+      const res = await fetch("http://127.0.0.1:8000/ingest/genuine/bots", { method: "POST" });
+      const data = await res.json();
+      setIngestedEvents(data.ingested_events || 0);
+      setCreatedIncidents(data.created_incidents || 0);
+    } catch (err) {
+      console.error("Failed to ingest BOTS", err);
+    }
     await fetchIncidents();
     setIngesting(false);
   };
 
   const criticalCount = incidents.filter(i => i.severity === "critical").length;
+  const noiseFilteredPercent = ingestedEvents > 0 
+    ? (((ingestedEvents - createdIncidents) / ingestedEvents) * 100).toFixed(1)
+    : 0;
 
   const getSeverityStyles = (severity: string) => {
     const styles: Record<string, { bg: string; text: string; accent: string }> = {
@@ -92,15 +118,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={async () => {
-                setIngesting(true);
-                try {
-                  await fetch("http://127.0.0.1:8000/ingest/genuine/bots", { method: "POST" });
-                  await fetchIncidents();
-                } catch (err) {
-                  console.error("Failed to ingest BOTS", err);
-                } finally {
-                  setIngesting(false);
-                }
+                await handleIngestBots();
               }}
               disabled={ingesting}
               className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 whitespace-nowrap"
@@ -119,7 +137,7 @@ export default function Dashboard() {
         </div>
         
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           <div className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden cursor-default">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-red-500/70 to-orange-500/60" />
             <div className="flex items-start gap-4">
@@ -153,6 +171,21 @@ export default function Dashboard() {
               <div className="flex-1">
                 <p className="text-slate-600 text-sm font-medium">System Status</p>
                 <p className="text-lg font-bold text-green-600 mt-1">Operational</p>
+              </div>
+            </div>
+          </div>
+          <div className="group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 relative overflow-hidden cursor-default">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-500/70 to-teal-500/70" />
+            <div className="flex items-start gap-4">
+              <div className="bg-emerald-100 p-3 rounded-lg group-hover:scale-110 transition-transform duration-300">
+                <BarChart3 className="text-emerald-600 w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <p className="text-slate-600 text-sm font-medium">Noise Filtered</p>
+                <div className="mt-1">
+                  <p className="text-3xl font-bold text-emerald-600">{ingestedEvents > 0 ? `${noiseFilteredPercent}%` : "—"}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{ingestedEvents > 0 ? `${ingestedEvents} events → ${createdIncidents} incident${createdIncidents !== 1 ? 's' : ''}` : "Run ingestion"}</p>
+                </div>
               </div>
             </div>
           </div>

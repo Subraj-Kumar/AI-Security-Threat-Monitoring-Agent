@@ -343,7 +343,7 @@ def chat_incident(incident_id: str, payload: ChatRequest):
     incident = DB["incidents"][incident_id]
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return {"answer": "Gemini runtime offline.", "citations": []}
+        return {"answer": "Gemini runtime offline. Please check your .env file.", "citations": []}
 
     client = genai.Client()
     
@@ -371,9 +371,27 @@ def chat_incident(incident_id: str, payload: ChatRequest):
                 temperature=0.2
             )
         )
-        return json.loads(response.text)
+        
+        # --- BULLETPROOF JSON PARSING ---
+        # Gemini sometimes returns markdown code blocks even when asked for JSON.
+        # This strips the ```json and ``` tags safely.
+        raw_text = response.text.strip()
+        if raw_text.startswith("```json"):
+            raw_text = raw_text[7:-3].strip()
+        elif raw_text.startswith("```"):
+            raw_text = raw_text[3:-3].strip()
+            
+        return json.loads(raw_text)
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Print the exact error to your Python terminal so you can read it
+        print(f"🔥 GEMINI CHAT ERROR: {str(e)}") 
+        
+        # Return the exact error to the frontend chat bubble instead of throwing a 500 crash
+        return {
+            "answer": f"⚠️ Backend AI Exception: {str(e)}", 
+            "citations": ["System Error Catch"]
+        }
 
 # --- TRIAGE WORKFLOW ACTIONS ---
 @app.patch("/incidents/{incident_id}/action")

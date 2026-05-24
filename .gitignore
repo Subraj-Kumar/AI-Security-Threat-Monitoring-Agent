@@ -32,8 +32,29 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.turbo/
+.turbopack/
 
 # --- OS / Editors ---
 .DS_Store
 .idea/
 .vscode/
+.vscode/extensions/
+*.swp
+*.swo
+*~
+
+# --- Generated Data & Backend ---
+backend/db.json
+backend/app/data/bots_subset.jsonl
+
+# (Keep enterprise_telemetry.jsonl committed for instant demo-ready data)
+
+# --- Environment & Config ---
+.env.local
+.env.production.local
+.env.development.local
+
+# --- IDE specific ---
+*.sublime-project
+*.sublime-workspace
