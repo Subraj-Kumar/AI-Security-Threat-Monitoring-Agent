@@ -1,10 +1,12 @@
 import os
 import uuid
 import json
+import csv
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -24,6 +26,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- REQUEST SCHEMAS ---
+class LiveIngestRequest(BaseModel):
+    """Receives dynamically generated live attack events from the honeypot."""
+    events: List[Dict[str, Any]]
 
 # --- IN-MEMORY DATABASE ---
 DB = {
@@ -184,34 +191,92 @@ def health():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 # --- INGESTION ENDPOINTS ---
-@app.post("/ingest/sample", response_model=IngestResult)
-def ingest_sample():
-    """Generates a perfect mock attack vector for immediate front-end pipeline validation."""
-    base_time = datetime.utcnow() - timedelta(hours=1)
-    
-    mock_raw = [
-        {"ts": base_time.isoformat(), "source": "auth", "event_type": "LOGIN_FAIL", "username": "admin_jsmith", "ip": "198.51.100.23", "raw": "Failed password for admin_jsmith"},
-        {"ts": (base_time + timedelta(minutes=2)).isoformat(), "source": "auth", "event_type": "LOGIN_FAIL", "username": "admin_jsmith", "ip": "198.51.100.23", "raw": "Failed password for admin_jsmith"},
-        {"ts": (base_time + timedelta(minutes=4)).isoformat(), "source": "auth", "event_type": "LOGIN_FAIL", "username": "admin_jsmith", "ip": "198.51.100.23", "raw": "Failed password for admin_jsmith"},
-        {"ts": (base_time + timedelta(minutes=5)).isoformat(), "source": "auth", "event_type": "LOGIN_FAIL", "username": "admin_jsmith", "ip": "198.51.100.23", "raw": "Failed password for admin_jsmith"},
-        {"ts": (base_time + timedelta(minutes=6)).isoformat(), "source": "auth", "event_type": "LOGIN_FAIL", "username": "admin_jsmith", "ip": "198.51.100.23", "raw": "Failed password for admin_jsmith"},
-        {"ts": (base_time + timedelta(minutes=7)).isoformat(), "source": "auth", "event_type": "LOGIN_SUCCESS", "username": "admin_jsmith", "ip": "198.51.100.23", "raw": "Accepted password for admin_jsmith"},
-        {"ts": (base_time + timedelta(minutes=12)).isoformat(), "source": "endpoint", "event_type": "PRIV_ESC", "username": "admin_jsmith", "ip": "198.51.100.23", "raw": "sudo executed: /bin/chmod 777 /etc/shadow"},
-    ]
-    
+@app.post("/ingest/dataset/{dataset_type}", response_model=IngestResult)
+def ingest_dataset(dataset_type: str):
+    """Unified dynamic endpoint for ingesting multiple dataset types."""
     events = []
-    for item in mock_raw:
-        evt = LogEvent(
-            id=str(uuid.uuid4()),
-            ts=datetime.fromisoformat(item["ts"]),
-            source=item["source"],
-            event_type=item["event_type"],
-            username=item["username"],
-            ip=item["ip"],
-            raw=item["raw"]
-        )
-        events.append(evt)
+    base_dir = os.path.dirname(__file__)
+    
+    # Clear the DB for fresh ingestion
+    DB["incidents"].clear()
+    DB["events"].clear()
+    
+    if dataset_type == "synthetic":
+        # SYNTHETIC: Enterprise telemetry JSONL
+        file_path = os.path.join(base_dir, "data", "enterprise_telemetry.jsonl")
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="synthetic file not found in data folder.")
         
+        with open(file_path, "r") as f:
+            for line in f:
+                if line.strip():
+                    item = json.loads(line)
+                    evt = LogEvent(
+                        id=str(uuid.uuid4()),
+                        ts=datetime.fromisoformat(item["ts"]),
+                        source=item["source"],
+                        event_type=item["event_type"],
+                        username=item.get("username"),
+                        ip=item.get("ip"),
+                        raw=item["raw"]
+                    )
+                    events.append(evt)
+    
+    elif dataset_type == "bots-auth":
+        # BOTS AUTH: Windows Event Log CSV with EventCode mapping
+        file_path = os.path.join(base_dir, "data", "bots_real_auth.csv")
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="BOTS CSV not found.")
+            
+        event_mapping = {"4625": "LOGIN_FAIL", "4624": "LOGIN_SUCCESS", "4728": "PRIV_ESC", "4732": "PRIV_ESC"}
+        
+        with open(file_path, mode="r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                event_id = row.get("EventCode", "")
+                if event_id in event_mapping:
+                    user = row.get("Account_Name", "Unknown")
+                    ip = row.get("Source_Network_Address", "127.0.0.1")
+                    if ip == "-" or not ip: ip = "Unknown IP"
+                    
+                    evt = LogEvent(
+                        id=str(uuid.uuid4()),
+                        ts=datetime.fromisoformat(row.get("_time", datetime.utcnow().isoformat()).replace("Z", "+00:00")),
+                        source="windows_wineventlog",
+                        event_type=event_mapping[event_id],
+                        username=user,
+                        ip=ip,
+                        raw=f"EventCode={event_id} | {row.get('Message', '')[:100]}..."
+                    )
+                    events.append(evt)
+    
+    elif dataset_type == "suricata":
+        # SURICATA: IDS JSON lines
+        file_path = os.path.join(base_dir, "data", "bots_suricata.jsonl")
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="suricata file not found in data folder.")
+        
+        with open(file_path, "r") as f:
+            for line in f:
+                if line.strip():
+                    item = json.loads(line)
+                    signature = item.get("alert", {}).get("signature", "IDS Alert")
+                    
+                    evt = LogEvent(
+                        id=str(uuid.uuid4()),
+                        ts=datetime.fromisoformat(item.get("timestamp", datetime.utcnow().isoformat())),
+                        source="suricata",
+                        event_type="IDS_ALERT",
+                        username=None,
+                        ip=item.get("src_ip"),
+                        raw=f"Alert: {signature}"
+                    )
+                    events.append(evt)
+    
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown dataset type: {dataset_type}")
+    
+    # Process through the analytics pipeline
     before_incidents = len(DB["incidents"])
     run_analytics_pipeline(events)
     after_incidents = len(DB["incidents"])
@@ -222,39 +287,29 @@ def ingest_sample():
         "created_incidents": after_incidents - before_incidents
     }
 
-@app.post("/ingest/genuine/bots", response_model=IngestResult)
-def ingest_bots_file():
-    """Reads the massive enterprise telemetry file and processes it."""
-    import os
-    file_path = os.path.join(os.path.dirname(__file__), "data", "enterprise_telemetry.jsonl")
-    
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="Enterprise telemetry file not found. Run generate_traffic.py first.")
-
+@app.post("/ingest/live", response_model=IngestResult)
+def ingest_live_attack(payload: LiveIngestRequest):
+    """Receives dynamically generated attacks directly from the Honeypot."""
     events = []
     
-    # Read the shuffled 1,200+ logs
-    with open(file_path, "r") as f:
-        for line in f:
-            if line.strip():
-                item = json.loads(line)
-                evt = LogEvent(
-                    id=str(uuid.uuid4()),
-                    ts=datetime.fromisoformat(item["ts"]),
-                    source=item["source"],
-                    event_type=item["event_type"],
-                    username=item.get("username"),
-                    ip=item.get("ip"),
-                    raw=item["raw"]
-                )
-                events.append(evt)
-                
-    # Clear the DB so we get a fresh dashboard for the demo
+    for item in payload.events:
+        evt = LogEvent(
+            id=str(uuid.uuid4()),
+            ts=datetime.fromisoformat(item["ts"]),
+            source=item["source"],
+            event_type=item["event_type"],
+            username=item.get("username"),
+            ip=item.get("ip"),
+            raw=item["raw"]
+        )
+        events.append(evt)
+            
+    # Clear the DB so the dashboard updates with exactly this attack
     DB["incidents"].clear()
     DB["events"].clear()
     
     before_incidents = len(DB["incidents"])
-    run_analytics_pipeline(events)  # This will correlate and score everything!
+    run_analytics_pipeline(events) 
     after_incidents = len(DB["incidents"])
     
     return {

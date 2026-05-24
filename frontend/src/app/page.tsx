@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Shield, BarChart3, CheckCircle, ChevronRight, Zap, Loader2 } from "lucide-react";
+import { Shield, BarChart3, CheckCircle, ChevronRight, Zap, Loader2, RefreshCw, Activity } from "lucide-react";
 
 type Incident = {
   id: string;
@@ -19,6 +19,8 @@ export default function Dashboard() {
   const [ingesting, setIngesting] = useState(false);
   const [ingestedEvents, setIngestedEvents] = useState(0);
   const [createdIncidents, setCreatedIncidents] = useState(0);
+  const [selectedDataset, setSelectedDataset] = useState("synthetic");
+  const [ingestError, setIngestError] = useState<string | null>(null);
 
   const fetchIncidents = async () => {
     try {
@@ -37,32 +39,35 @@ export default function Dashboard() {
     fetchIncidents();
   }, []);
 
-  const handleIngest = async () => {
+  const handleIngestDataset = async (datasetType: string) => {
     setIngesting(true);
+    setIngestError(null);
     try {
-      const res = await fetch("http://127.0.0.1:8000/ingest/sample", { method: "POST" });
+      const res = await fetch(`http://127.0.0.1:8000/ingest/dataset/${datasetType}`, { method: "POST" });
+      if (!res.ok) {
+        if (res.status === 404) {
+          const error = await res.json();
+          setIngestError(`❌ ${error.detail}`);
+        } else {
+          setIngestError(`Failed to ingest dataset (HTTP ${res.status})`);
+        }
+        setIngesting(false);
+        return;
+      }
       const data = await res.json();
       setIngestedEvents(data.ingested_events || 0);
       setCreatedIncidents(data.created_incidents || 0);
+      await fetchIncidents();
     } catch (err) {
-      console.error("Failed to ingest sample", err);
+      console.error(`Failed to ingest ${datasetType}`, err);
+      setIngestError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIngesting(false);
     }
-    await fetchIncidents();
-    setIngesting(false);
   };
 
-  const handleIngestBots = async () => {
-    setIngesting(true);
-    try {
-      const res = await fetch("http://127.0.0.1:8000/ingest/genuine/bots", { method: "POST" });
-      const data = await res.json();
-      setIngestedEvents(data.ingested_events || 0);
-      setCreatedIncidents(data.created_incidents || 0);
-    } catch (err) {
-      console.error("Failed to ingest BOTS", err);
-    }
-    await fetchIncidents();
-    setIngesting(false);
+  const handleSimulateAttack = () => {
+    handleIngestDataset("synthetic");
   };
 
   const criticalCount = incidents.filter(i => i.severity === "critical").length;
@@ -109,23 +114,64 @@ export default function Dashboard() {
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <button
-              onClick={handleIngest}
+              onClick={handleSimulateAttack}
               disabled={ingesting}
               className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm bg-gradient-to-r from-orange-500 to-amber-400 hover:from-orange-600 hover:to-amber-500 whitespace-nowrap"
             >
               {ingesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
               {ingesting ? "Ingesting..." : "Simulate Attack"}
             </button>
-            <button
-              onClick={async () => {
-                await handleIngestBots();
-              }}
-              disabled={ingesting}
-              className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 whitespace-nowrap"
-            >
-              {ingesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
-              {ingesting ? "Ingesting..." : "Ingest BOTS Dataset"}
-            </button>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <select
+                value={selectedDataset}
+                onChange={(e) => setSelectedDataset(e.target.value)}
+                disabled={ingesting}
+                className="px-4 py-2.5 rounded-xl font-medium text-sm border border-slate-300 bg-white text-slate-900 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm hover:border-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+              >
+                <option value="synthetic">Simulated Enterprise Traffic</option>
+                <option value="bots-auth">Splunk BOTS (AD/Auth CSV)</option>
+                <option value="suricata">Splunk BOTS (Suricata IDS JSON)</option>
+                <option value="live">📡 Live Honeypot Stream</option>
+              </select>
+              <button
+                onClick={async () => {
+                  setIngesting(true);
+                  try {
+                    if (selectedDataset === "live") {
+                      // For live, the honeypot script already ingested the data.
+                      // We just refresh the dashboard to show the new incidents
+                      await fetchIncidents();
+                    } else {
+                      const res = await fetch(`http://127.0.0.1:8000/ingest/dataset/${selectedDataset}`, { method: "POST" });
+                      if (!res.ok) {
+                        if (res.status === 404) {
+                          const error = await res.json();
+                          setIngestError(`❌ ${error.detail}`);
+                        } else {
+                          setIngestError(`Failed to ingest dataset (HTTP ${res.status})`);
+                        }
+                        setIngesting(false);
+                        return;
+                      }
+                      const data = await res.json();
+                      setIngestedEvents(data.ingested_events || 0);
+                      setCreatedIncidents(data.created_incidents || 0);
+                      await fetchIncidents();
+                    }
+                  } catch (err) {
+                    console.error(`Failed to ingest ${selectedDataset}`, err);
+                    setIngestError(`Network error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+                  } finally {
+                    setIngesting(false);
+                  }
+                }}
+                disabled={ingesting}
+                className="flex items-center gap-2 text-white px-5 py-2.5 rounded-xl font-semibold transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 whitespace-nowrap"
+              >
+                {ingesting ? <Loader2 className="w-4 h-4 animate-spin" /> : selectedDataset === "live" ? <Activity className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
+                {ingesting ? "Refreshing..." : selectedDataset === "live" ? "Refresh Live Feed" : "Ingest Dataset"}
+              </button>
+            </div>
             <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/80 border border-slate-200 text-xs text-slate-600 shadow-sm">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -133,6 +179,11 @@ export default function Dashboard() {
               </span>
               Live
             </div>
+            {ingestError && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 shadow-sm whitespace-nowrap">
+                {ingestError}
+              </div>
+            )}
           </div>
         </div>
         
