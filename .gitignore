@@ -58,3 +58,10 @@ backend/app/data/bots_subset.jsonl
 # --- IDE specific ---
 *.sublime-project
 *.sublime-workspace
+
+# large datasets
+backend/app/data/bots_real_auth.csv
+backend/app/data/*.csv
+backend/app/data/*.csv.gz
+backend/app/data/*.json.gz
+backend/app/data/*.jsonl.gz

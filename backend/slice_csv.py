@@ -5,8 +5,8 @@ import os
 INPUT_FILE = "app/data/botsv1.WinEventLog_Security.csv" 
 
 # This is where your backend endpoint expects the data to be!
-OUTPUT_FILE = "app/data/bots_real_auth.csv" 
-LINES_TO_KEEP = 10000000
+OUTPUT_FILE = "app/data/bots_real_auth_10k.csv" 
+LINES_TO_KEEP = 10000
 
 print(f"Slicing the first {LINES_TO_KEEP} lines from {INPUT_FILE}...")
 
