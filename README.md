@@ -14,6 +14,7 @@
 ## 🚀 The Problem: Alert Fatigue is Killing SOCs
 
 **The Reality:**
+
 - Security teams receive **5,000-10,000 alerts per day**
 - **80-90% are false positives** from benign behavior, misconfigurations, or background noise
 - Analysts waste hours chasing ghosts instead of hunting real threats
@@ -21,6 +22,7 @@
 - **Cost:** Huge manual effort, missed threats, burnout
 
 **Why Current Solutions Fail:**
+
 - SIEM dashboards: Too much noise, no prioritization
 - Pure ML/AI: Hallucinations, unexplainable, expensive
 - Manual tuning: Doesn't scale, always behind new patterns
@@ -33,10 +35,11 @@
 **SecOPS** combines deterministic rules (fast + explainable) with AI synthesis (contextual + intelligent):
 
 ### **Layer 1: Deterministic Rules Engine** ⚡
+
 Fast, mathematical algorithms that filter noise with 99.6% accuracy:
 
 ```
-Raw Events (1,220) 
+Raw Events (1,220)
     ↓
 [Correlation] Group by (user, IP) over 15-min sliding window
     ↓
@@ -52,7 +55,7 @@ Raw Events (1,220)
     ↓
 [Multi-Factor Confidence] Combine signals:
     • Single signal: 40% confidence
-    • 2+ signals: 85% confidence  
+    • 2+ signals: 85% confidence
     • Threat intel match: 95% confidence
     ↓
 [Filtering] Surface only high-confidence incidents
@@ -64,9 +67,10 @@ Result: 1,215 false positives filtered, 5 real incidents surfaced (99.6%)
 ✅ No hallucinations (pure math)  
 ✅ Explainable decisions (auditors can verify)  
 ✅ Fast (milliseconds, not seconds)  
-✅ Reliable (no ML randomness)  
+✅ Reliable (no ML randomness)
 
 ### **Layer 2: AI Co-Pilot (Gemini 2.5 Flash)** 🤖
+
 Once an incident is grouped and scored, pass bounded context to AI:
 
 - **Translates raw JSON → plain-English executive summary**
@@ -78,9 +82,10 @@ Once an incident is grouped and scored, pass bounded context to AI:
 ✅ Analysts understand business impact (not just raw logs)  
 ✅ Industry-standard security language (MITRE)  
 ✅ Questions answered with evidence, not guesses  
-✅ AI assists humans, not replaces them  
+✅ AI assists humans, not replaces them
 
 ### **Layer 3: Live Threat Capture** 🎯
+
 Honeypot server captures real attack traffic:
 
 - Listens on port 8888 for unauthorized access
@@ -93,17 +98,17 @@ Honeypot server captures real attack traffic:
 
 ## ✨ Key Features
 
-| Feature | What It Does | Impact |
-|---------|-------------|--------|
-| **🚨 Smart Filtering** | Analyzes 1,220 events → surfaces 5 incidents | **99.6% noise reduction** |
+| Feature                    | What It Does                                           | Impact                                |
+| -------------------------- | ------------------------------------------------------ | ------------------------------------- |
+| **🚨 Smart Filtering**     | Analyzes 1,220 events → surfaces 5 incidents           | **99.6% noise reduction**             |
 | **📊 Threat Intelligence** | Known bad IPs, suspicious usernames, high-value assets | **Business context, not just scores** |
-| **📍 MITRE Mapping** | Auto-tags with ATT&CK IDs (T1110, T1068, etc.) | **Industry standard language** |
-| **🤖 AI Synthesis** | Gemini translates JSON → executive summaries | **Analysts understand attacks** |
-| **💬 Incident Chat** | Ask questions in natural language | **Evidence-backed answers** |
-| **📈 Filtering Metrics** | Dashboard shows 1,220 → 1,215 → 5 workflow | **Transparency + confidence** |
-| **🏢 Case Management** | Assign, track status, immutable audit logs | **Enterprise compliance ready** |
-| **🎯 Live Honeypot** | Real-time IP capture from network attackers | **Differentiating + impressive** |
-| **📡 Multi-Dataset** | Simulated traffic, BOTS v1, live streams | **Works in any environment** |
+| **📍 MITRE Mapping**       | Auto-tags with ATT&CK IDs (T1110, T1068, etc.)         | **Industry standard language**        |
+| **🤖 AI Synthesis**        | Gemini translates JSON → executive summaries           | **Analysts understand attacks**       |
+| **💬 Incident Chat**       | Ask questions in natural language                      | **Evidence-backed answers**           |
+| **📈 Filtering Metrics**   | Dashboard shows 1,220 → 1,215 → 5 workflow             | **Transparency + confidence**         |
+| **🏢 Case Management**     | Assign, track status, immutable audit logs             | **Enterprise compliance ready**       |
+| **🎯 Live Honeypot**       | Real-time IP capture from network attackers            | **Differentiating + impressive**      |
+| **📡 Multi-Dataset**       | Simulated traffic, BOTS v1, live streams               | **Works in any environment**          |
 
 ---
 
@@ -112,18 +117,21 @@ Honeypot server captures real attack traffic:
 ### **Setup** (1 min)
 
 **Windows:**
+
 ```bash
 Double-click: START.bat
 Browser: http://localhost:3000
 ```
 
 **Mac/Linux:**
+
 ```bash
 bash START.sh
 Browser: http://localhost:3000
 ```
 
 **Manual Setup:**
+
 ```bash
 # Terminal 1: Backend API
 cd backend
@@ -138,7 +146,7 @@ npm run dev
 
 ### **Demo Flow** (2 min)
 
-1. **Click "🚨 Simulate Attack"** 
+1. **Click "🚨 Simulate Attack"**
    - See metrics update: 1,220 events ingested
    - 1,215 filtered (99.6%)
    - 5 incidents surfaced
@@ -257,6 +265,7 @@ Dashboard: Ready for analyst investigation
 ## 🛠️ Tech Stack
 
 ### **Backend**
+
 - **FastAPI 0.136** - Modern async REST framework
 - **Python 3.14** - Runtime with type hints
 - **Pydantic 2.13** - Data validation + schema enforcement
@@ -265,6 +274,7 @@ Dashboard: Ready for analyst investigation
 - **JSON** - Persistent local database
 
 ### **Frontend**
+
 - **Next.js 16.2 + Turbopack** - Production React framework
 - **React 19** - UI components
 - **TypeScript 5** - End-to-end type safety
@@ -314,6 +324,7 @@ DEMO_FLOW.md (3-minute demo script)
 ## 🚀 Getting Started
 
 ### **Prerequisites**
+
 - Python 3.14+
 - Node.js 18+
 - npm/yarn
@@ -348,16 +359,19 @@ npm run dev
 ## ✅ Verification
 
 **Backend Syntax:**
+
 ```bash
 python -m py_compile app/main.py  # ✅ PASS
 ```
 
 **Frontend Build:**
+
 ```bash
 npm run build  # ✅ PASS (1.7s, zero errors)
 ```
 
 **API Health:**
+
 ```bash
 curl http://127.0.0.1:8000/incidents  # ✅ 200 OK
 ```
@@ -366,16 +380,16 @@ curl http://127.0.0.1:8000/incidents  # ✅ 200 OK
 
 ## 📊 Performance Metrics
 
-| Metric | Result |
-|--------|--------|
-| Raw events processed | 1,220 |
+| Metric                   | Result        |
+| ------------------------ | ------------- |
+| Raw events processed     | 1,220         |
 | False positives filtered | 1,215 (99.6%) |
-| Real incidents surfaced | 5 |
-| Dashboard load time | < 3s |
-| API response time | 50-200ms |
-| Honeypot capture rate | 100% |
-| MITRE mapping accuracy | 100% |
-| Audit log coverage | 100% |
+| Real incidents surfaced  | 5             |
+| Dashboard load time      | < 3s          |
+| API response time        | 50-200ms      |
+| Honeypot capture rate    | 100%          |
+| MITRE mapping accuracy   | 100%          |
+| Audit log coverage       | 100%          |
 
 ---
 
@@ -388,7 +402,7 @@ curl http://127.0.0.1:8000/incidents  # ✅ 200 OK
 ✅ **Live Honeypot** - Real attack capture (differentiating)  
 ✅ **Enterprise Grade** - Audit logs, case management, compliance  
 ✅ **Hybrid Architecture** - Combines speed + reasoning  
-✅ **Full Stack** - FastAPI + Next.js + TypeScript + Modern tooling  
+✅ **Full Stack** - FastAPI + Next.js + TypeScript + Modern tooling
 
 ---
 
@@ -404,6 +418,7 @@ curl http://127.0.0.1:8000/incidents  # ✅ 200 OK
 ## 🎬 Demo Video Tips
 
 **Key Moments to Highlight:**
+
 1. Filtering metrics (99.6% noise → 5 real incidents)
 2. Threat intel badges (APT28, known bad IPs)
 3. MITRE auto-mapping (T1110, T1078, T1068)
@@ -416,12 +431,12 @@ curl http://127.0.0.1:8000/incidents  # ✅ 200 OK
 
 ## 🏆 Hackathon Evaluation Criteria
 
-| Criteria | Our Score |
-|----------|-----------|
-| Real-World Usability | ⭐⭐⭐⭐⭐ Live honeypot, production-grade |
-| UI/UX | ⭐⭐⭐⭐⭐ Clean dashboard, intuitive threat triage |
-| AI Integration | ⭐⭐⭐⭐⭐ Gemini for synthesis + prioritization |
-| Creativity | ⭐⭐⭐⭐⭐ Hybrid deterministic + AI (novel) |
+| Criteria                 | Our Score                                             |
+| ------------------------ | ----------------------------------------------------- |
+| Real-World Usability     | ⭐⭐⭐⭐⭐ Live honeypot, production-grade            |
+| UI/UX                    | ⭐⭐⭐⭐⭐ Clean dashboard, intuitive threat triage   |
+| AI Integration           | ⭐⭐⭐⭐⭐ Gemini for synthesis + prioritization      |
+| Creativity               | ⭐⭐⭐⭐⭐ Hybrid deterministic + AI (novel)          |
 | Technical Implementation | ⭐⭐⭐⭐⭐ FastAPI + Next.js + TypeScript + Threading |
 
 ---
