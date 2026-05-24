@@ -7,6 +7,18 @@ import {
   MessageCircle, Download, ChevronRight, Shield
 } from "lucide-react";
 
+// --- DYNAMIC ENVIRONMENT DETECTION ---
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      return "http://127.0.0.1:8000";
+    }
+  }
+  return "https://sec-ops-backend.onrender.com";
+};
+
+const BACKEND_URL = getApiBaseUrl();
+
 // --- TypeScript Interfaces ---
 interface LogEvent {
   id: string;
@@ -77,8 +89,6 @@ export default function IncidentDetailPage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatLoading, setChatLoading] = useState<boolean>(false);
   const [noteInput, setNoteInput] = useState<string>("");
-
-  const BACKEND_URL = "http://127.0.0.1:8000";
 
   useEffect(() => {
     if (!id) return;
