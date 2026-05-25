@@ -39,7 +39,7 @@
 Fast, mathematical algorithms that filter noise with 99.6% accuracy:
 
 ```
-Raw Events (1,220)
+Raw Events ( 1,220 )
     ↓
 [Correlation] Group by (user, IP) over 15-min sliding window
     ↓
